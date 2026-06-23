@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VulnAnalyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2128;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #7d8590;
+  --accent: #39d353;
+  --accent-dim: #1a6b28;
+  --critical: #ff4b4b;
+  --high: #f78166;
+  --medium: #e3b341;
+  --low: #58a6ff;
+  --info: #8b949e;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  height: 100vh;
+  overflow: hidden;
+}
+.container {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  grid-template-rows: 52px 1fr;
+  height: 100vh;
+}
+/* Header */
+.header {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+}
+.logo {
+  font-weight: 700;
+  font-size: 15px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.3px;
+}
+.logo span { color: var(--accent); }
+.header-sep { flex: 1; }
+.mode-btn {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+}
+.mode-btn:hover { color: var(--text); border-color: var(--muted); }
+.mode-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(57, 211, 83, 0.08);
+}
+/* Left panel */
+.left {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-title {
+  padding: 12px 16px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+}
+.input-area {
+  flex: 1;
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+}
+.input-area.active { display: flex; }
+#code-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  resize: none;
+  outline: none;
+  line-height: 1.6;
+}
+#code-input::placeholder { color: var(--muted); opacity: 0.6; }
+/* Scan area */
+.scan-area {
+  flex: 1;
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+  padding: 14px 16px;
+}
+.scan-area.active { display: flex; }
+.form-group { margin-bottom: 10px; }
+.form-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  display: block;
+}
+.form-input {
+  width: 100%;
+  padding: 9px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--muted); opacity: 0.5; }
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+/* Scan log */
+.scan-log {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.8;
+  min-height: 0;
+}
+.log-line {
+  color: var(--muted);
+  padding: 1px 0;
+  animation: fadeIn 0.2s ease-out;
+}
+.log-line.highlight { color: var(--accent); }
+.log-line.error { color: var(--critical); }
+.log-line.info { color: var(--low); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+/* Progress bar */
+.progress-container {
+  margin-top: 8px;
+  display: none;
+}
+.progress-container.active { display: block; }
+.progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--low));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  animation: progressPulse 2s ease-in-out infinite;
+}
+@keyframes progressPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+/* Controls */
+.controls {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.btn {
+  padding: 10px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: none;
+}
+.btn.loading .btn-spinner { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Right panel */
+.right {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.results-header {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 46px;
+}
+.badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  white-space: nowrap;
+}
+.badge.total { background: var(--surface2); font-weight: 600; }
+.badge.critical { color: var(--critical); border-color: rgba(255,75,75,0.3); }
+.badge.high { color: var(--high); border-color: rgba(247,129,102,0.3); }
+.badge.medium { color: var(--medium); border-color: rgba(227,179,65,0.3); }
+.badge.low { color: var(--low); border-color: rgba(88,166,255,0.3); }
+/* Filter bar */
+.filter-bar {
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  display: none;
+  gap: 6px;
+  align-items: center;
+}
+.filter-bar.active { display: flex; }
+.filter-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.filter-btn:hover { color: var(--text); border-color: var(--muted); }
+.filter-btn.active { color: var(--text); border-color: var(--accent); background: rgba(57,211,83,0.08); }
+/* Results */
+.results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.results::-webkit-scrollbar { width: 6px; }
+.results::-webkit-scrollbar-track { background: transparent; }
+.results::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+  text-align: center;
+}
+.empty-state .icon {
+  font-size: 48px;
+  opacity: 0.2;
+  margin-bottom: 12px;
+}
+.empty-state p { font-size: 13px; opacity: 0.7; }
+/* Finding card */
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.finding:hover { border-color: var(--muted); }
+.finding-header {
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  user-select: none;
+  transition: background 0.1s;
+}
+.finding-header:hover { background: var(--surface2); }
+.risk-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.risk-dot.critical { background: var(--critical); box-shadow: 0 0 6px rgba(255,75,75,0.4); }
+.risk-dot.high { background: var(--high); box-shadow: 0 0 6px rgba(247,129,102,0.3); }
+.risk-dot.medium { background: var(--medium); }
+.risk-dot.low { background: var(--low); }
+.risk-dot.info { background: var(--info); }
+.finding-title { flex: 1; font-weight: 500; font-size: 13px; }
+.finding-source {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.line-badge {
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.code-preview {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  overflow-x: auto;
+}
+.code-preview code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  white-space: pre;
+}
+.risk-badge {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.risk-badge.critical { background: var(--critical); color: white; }
+.risk-badge.high { background: var(--high); color: white; }
+.risk-badge.medium { background: var(--medium); color: #000; }
+.risk-badge.low { background: var(--low); color: white; }
+.risk-badge.info { background: var(--info); color: white; }
+.chevron {
+  transition: transform 0.2s;
+  color: var(--muted);
+  font-size: 10px;
+}
+.finding.open .chevron { transform: rotate(90deg); }
+.finding-body {
+  display: none;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  gap: 10px;
+  flex-direction: column;
+  font-size: 12px;
+  background: var(--bg);
+}
+.finding.open .finding-body { display: flex; }
+.field {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.field-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-top: 2px;
+}
+.field-value {
+  color: var(--text);
+  word-break: break-word;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.verification {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #adbac7;
+  line-height: 1.7;
+  font-family: 'JetBrains Mono', monospace;
+}
+.meta-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.meta-tag {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.poc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.poc-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+}
+.poc-label {
+  color: var(--muted);
+  margin-bottom: 3px;
+  font-size: 9px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.poc-code {
+  color: var(--accent);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+/* Scan stats bar */
+.scan-stats {
+  display: none;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  gap: 16px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+}
+.scan-stats.active { display: flex; }
+.stat-item { display: flex; gap: 4px; align-items: center; }
+.stat-value { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">Vuln<span>Analyzer</span></div>
+    <div class="header-sep"></div>
+    <button class="mode-btn active" onclick="switchMode('manual')">Manual</button>
+    <button class="mode-btn" onclick="switchMode('scan')">Scan</button>
+  </div>
+  <div class="left">
+    <div class="input-area active">
+      <div class="panel-title">Code / Request</div>
+      <textarea id="code-input" placeholder="Paste HTTP request, HTML, or source code here...&#10;&#10;Examples:&#10;  - HTTP request/response text&#10;  - HTML with forms&#10;  - Java/Python/PHP source code"></textarea>
+      <div class="controls">
+        <button class="btn" id="analyze-btn" onclick="analyze()">
+          <span class="btn-spinner"></span>
+          <span>Analyze</span>
+        </button>
+      </div>
+    </div>
+    <div class="scan-area">
+      <div class="form-group">
+        <label class="form-label">Target URL</label>
+        <input type="text" id="target-url" class="form-input" placeholder="https://example.com">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Max Pages</label>
+          <input type="number" id="max-pages" class="form-input" value="30" min="1" max="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Min Risk</label>
+          <select id="min-risk" class="form-input">
+            <option value="info">All (info+)</option>
+            <option value="low">Low+</option>
+            <option value="medium">Medium+</option>
+            <option value="high">High+</option>
+            <option value="critical">Critical only</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" id="scan-btn" onclick="scanTarget()">
+        <span class="btn-spinner"></span>
+        <span>Scan Target</span>
+      </button>
+      <div class="progress-container" id="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width: 5%"></div>
+        </div>
+      </div>
+      <div class="scan-log" id="scan-log"></div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="results-header" id="results-header"></div>
+    <div class="filter-bar" id="filter-bar">
+      <span style="font-size:10px;color:var(--muted);margin-right:4px;">FILTER:</span>
+      <button class="filter-btn active" data-type="all" onclick="filterType('all')">All</button>
+    </div>
+    <div class="scan-stats" id="scan-stats"></div>
+    <div class="results" id="results">
+      <div class="empty-state">
+        <div class="icon">⚡</div>
+        <p>Start analyzing to see results</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const POC = {
+  "XSS": [
+    ["Reflected", "<img src=x onerror=alert(1)>"],
+    ["DOM-based", "\" onmouseover=\"alert(1)\" x=\""],
+    ["Stored", "<scr" + "ipt>alert(document.cookie)<\/scr" + "ipt>"]
+  ],
+  "SQL Injection": [
+    ["Boolean", "' OR '1'='1"],
+    ["UNION", "' UNION SELECT 1,2,3,4-- -"],
+    ["Time-based", "' AND SLEEP(5)-- -"]
+  ],
+  "Path Traversal": [
+    ["Unix", "../../../etc/passwd"],
+    ["Windows", "..\\\\..\\\\..\\\\windows\\\\win.ini"],
+    ["Encoded", "..%2F..%2F..%2Fetc%2Fpasswd"]
+  ],
+  "Cmd Injection": [
+    ["Basic", "; id; "],
+    ["Pipe", "| cat /etc/passwd"]
+  ],
+  "SSRF": [
+    ["Localhost", "http://127.0.0.1:8080"],
+    ["Cloud Meta", "http://169.254.169.254/latest/meta-data/"]
+  ],
+  "Open Redirect": [
+    ["Protocol", "//attacker.com"],
+    ["JS", "javascript:alert(1)"]
+  ],
+  "XXE": [
+    ["Basic", "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>"]
+  ],
+  "Insecure Deserialization": [
+    ["Java", "ObjectInputStream.readObject() with untrusted data"]
+  ],
+  "SSTI": [
+    ["Jinja2", "{{7*7}}"],
+    ["Jinja2 RCE", "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"],
+    ["Twig", "{{7*'7'}}"],
+    ["Freemarker", "${7*7}"],
+    ["Velocity", "#set($x=7*7)$x"],
+    ["Thymeleaf", "[[7*7]]"],
+    ["Smarty", "{7*7}"],
+  ],
+};
+
+let currentFindings = [];
+let activeFilter = 'all';
+
+function switchMode(mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+  const input = document.querySelector('.input-area');
+  const scan = document.querySelector('.scan-area');
+  if (mode === 'manual') {
+    input.classList.add('active');
+    scan.classList.remove('active');
+  } else {
+    input.classList.remove('active');
+    scan.classList.add('active');
+  }
+}
+
+function setBtnLoading(btn, loading) {
+  if (loading) {
+    btn.classList.add('loading');
+    btn.disabled = true;
+  } else {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+async function analyze() {
+  const code = document.getElementById('code-input').value.trim();
+  if (!code) return;
+  const btn = document.getElementById('analyze-btn');
+  setBtnLoading(btn, true);
+  try {
+    const res = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: code, min_risk: 'info' })
+    });
+    const data = await res.json();
+    renderResults(data);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+async function scanTarget() {
+  const target = document.getElementById('target-url').value.trim();
+  if (!target) return;
+  const btn = document.getElementById('scan-btn');
+  const log = document.getElementById('scan-log');
+  const progress = document.getElementById('progress-container');
+  const progressFill = document.getElementById('progress-fill');
+
+  setBtnLoading(btn, true);
+  log.innerHTML = '';
+  progress.classList.add('active');
+  progressFill.style.width = '5%';
+
+  const addLog = (text, cls) => {
+    const div = document.createElement('div');
+    div.className = 'log-line' + (cls ? ' ' + cls : '');
+    div.textContent = '› ' + text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  let progressPct = 5;
+  const setProgress = (pct) => {
+    progressPct = Math.min(pct, 95);
+    progressFill.style.width = progressPct + '%';
+  };
+
+  try {
+    const minRisk = document.getElementById('min-risk').value;
+    const maxPages = parseInt(document.getElementById('max-pages').value) || 30;
+
+    // Use SSE stream for real-time progress
+    const response = await fetch('/scan-stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target, min_risk: minRisk, max_pages: maxPages })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      addLog('Error: ' + (err.error || response.statusText), 'error');
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let pageCount = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === 'progress') {
+            addLog(event.data, 'highlight');
+            pageCount++;
+            setProgress(Math.min(5 + pageCount * 3, 90));
+          } else if (event.type === 'result') {
+            setProgress(100);
+            addLog('✓ Scan complete!', 'highlight');
+            renderResults(event.data);
+          } else if (event.type === 'error') {
+            addLog('Error: ' + event.data, 'error');
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+    }
+  } catch (e) {
+    addLog('Connection error: ' + e.message, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+    progress.classList.remove('active');
+  }
+}
+
+function filterType(type) {
+  activeFilter = type;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === type);
+  });
+  renderFilteredFindings();
+}
+
+function renderFilteredFindings() {
+  const filtered = activeFilter === 'all'
+    ? currentFindings
+    : currentFindings.filter(f => f.type === activeFilter);
+  renderFindingCards(filtered);
+}
+
+function renderResults(data) {
+  const { total_findings, by_risk } = data.summary;
+  currentFindings = data.findings || [];
+
+  // Stats header
+  let statsHTML = `<span class="badge total">${total_findings} findings</span>`;
+  const riskOrder = ['critical', 'high', 'medium', 'low', 'info'];
+  for (const risk of riskOrder) {
+    if (by_risk[risk]) {
+      statsHTML += `<span class="badge ${risk}">${risk}: ${by_risk[risk]}</span>`;
+    }
+  }
+  document.getElementById('results-header').innerHTML = statsHTML;
+
+  // Scan stats
+  if (data.pages_crawled !== undefined) {
+    const statsEl = document.getElementById('scan-stats');
+    statsEl.innerHTML =
+      `<span class="stat-item">Pages: <span class="stat-value">${data.pages_crawled}</span></span>` +
+      `<span class="stat-item">Forms: <span class="stat-value">${data.forms_found || 0}</span></span>` +
+      `<span class="stat-item">Params: <span class="stat-value">${data.params_found || 0}</span></span>` +
+      (data.errors && data.errors.length ? `<span class="stat-item" style="color:var(--critical)">Errors: <span class="stat-value">${data.errors.length}</span></span>` : '');
+    statsEl.classList.add('active');
+  }
+
+  // Filter bar
+  const types = [...new Set(currentFindings.map(f => f.type))].sort();
+  const filterBar = document.getElementById('filter-bar');
+  if (types.length > 1) {
+    filterBar.innerHTML = '<span style="font-size:10px;color:var(--muted);margin-right:4px;">TYPE:</span>' +
+      '<button class="filter-btn active" data-type="all" onclick="filterType(\'all\')">All (' + currentFindings.length + ')</button>' +
+      types.map(t => {
+        const count = currentFindings.filter(f => f.type === t).length;
+        return `<button class="filter-btn" data-type="${t}" onclick="filterType('${t}')">${t} (${count})</button>`;
+      }).join('');
+    filterBar.classList.add('active');
+  } else {
+    filterBar.classList.remove('active');
+  }
+
+  activeFilter = 'all';
+  renderFindingCards(currentFindings);
+}
+
+function renderFindingCards(findings) {
+  if (!findings || findings.length === 0) {
+    document.getElementById('results').innerHTML =
+      '<div class="empty-state"><div class="icon">✓</div><p>No vulnerabilities found</p></div>';
+    return;
+  }
+
+  let html = '';
+  const groups = {};
+  findings.forEach(f => {
+    if (!groups[f.risk]) groups[f.risk] = [];
+    groups[f.risk].push(f);
+  });
+
+  ['critical', 'high', 'medium', 'low', 'info'].forEach(risk => {
+    if (!groups[risk]) return;
+    groups[risk].forEach(f => {
+      const pocHtml = POC[f.type] ? POC[f.type].map(([label, payload]) =>
+        '<div class="poc-item"><div class="poc-label">' + escape(label) + '</div><code class="poc-code">' + escape(payload) + '</code></div>'
+      ).join('') : '';
+
+      const tagsHtml = f.tags && f.tags.length
+        ? '<div class="meta-tags">' + f.tags.map(t => '<span class="meta-tag">' + escape(t) + '</span>').join('') + '</div>'
+        : '';
+
+      const cweHtml = f.cwe ? `<div class="field"><div class="field-label">CWE</div><div class="field-value"><a href="https://cwe.mitre.org/data/definitions/${f.cwe.replace('CWE-', '')}.html" target="_blank" style="color:var(--low);text-decoration:none">${escape(f.cwe)}</a></div></div>` : '';
+      const owaspHtml = f.owasp ? `<div class="field"><div class="field-label">OWASP</div><div class="field-value">${escape(f.owasp)}</div></div>` : '';
+      const confHtml = `<div class="field"><div class="field-label">Confidence</div><div class="field-value">${escape(f.confidence || 'medium')}</div></div>`;
+
+      html += `<div class="finding">
+        <div class="finding-header" onclick="this.parentElement.classList.toggle('open')">
+          <div class="risk-dot ${f.risk}"></div>
+          <div class="finding-title">${escape(f.type)}</div>
+          ${f.line ? `<span class="line-badge">${f.line}:${f.col}</span>` : ''}
+          <span class="risk-badge ${f.risk}">${f.risk}</span>
+          <span class="chevron">▶</span>
+        </div>
+        <div class="finding-body">
+          <div class="field"><div class="field-label">Location</div><div class="field-value">${escape(f.location)}</div></div>
+          ${f.source_line ? `<div class="field"><div class="field-label">Code</div><div class="field-value code-preview"><code>${escape(f.source_line)}</code></div></div>` : ''}
+          <div class="field"><div class="field-label">Evidence</div><div class="field-value">${escape(f.evidence)}</div></div>
+          ${confHtml}
+          <div class="field"><div class="field-label">Fix</div><div class="verification">${escape(f.verification).replace(/\n/g, '<br>')}</div></div>
+          ${cweHtml}${owaspHtml}
+          ${tagsHtml ? '<div class="field"><div class="field-label">Tags</div>' + tagsHtml + '</div>' : ''}
+          ${pocHtml ? '<div class="field"><div class="field-label">PoC</div><div class="poc-section">' + pocHtml + '</div></div>' : ''}
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('results').innerHTML = html;
+}
+
+function escape(s) {
+  const div = document.createElement('div');
+  div.textContent = String(s);
+  return div.innerHTML;
+}
+
+// Keyboard shortcut: Ctrl+Enter to analyze/scan
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const scanActive = document.querySelector('.scan-area.active');
+    if (scanActive) scanTarget();
+    else analyze();
+  }
+});
+</script>
+</body>
+</html>

@@ -388,4 +388,5 @@ A: Yes. The PoC library uses pure DOM API rendering — all payloads are set via
 
 ---
 
-![image-20260628001045419](D:\1PTtools\VulnAnalyzer\image-20260628001045419.png)
+![image-20260628001045419](.\image-20260628001045419.png)
+

@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VulnAnalyzer</title>
+<title>VulnAnalyzer by cappuccinonofans</title>
+<link rel="icon" href="/static/kabuqin2.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="/static/poc_data.js"></script>
 <style>
@@ -237,6 +238,9 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
+.right.hidden { display: none !important; }
+.container:has(.right.hidden) { grid-template-columns: 1fr; }
+.left:has(~ .right.hidden) { border-right: none; }
 .results-header {
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
@@ -620,16 +624,139 @@ body {
 }
 .poc-copy-btn:hover { color: var(--accent); border-color: var(--accent); }
 .poc-copy-btn.copied { color: var(--accent); border-color: var(--accent); background: rgba(57,211,83,0.1); }
+
+/* About panel */
+.about-area {
+  flex: 1;
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+}
+.about-area.active { display: flex; }
+.about-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+.about-section {
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+.about-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+  letter-spacing: 0.3px;
+}
+.changelog-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.changelog-item:last-child { border-bottom: none; }
+.changelog-version {
+  flex-shrink: 0;
+  background: var(--accent);
+  color: #000;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+.changelog-desc {
+  color: var(--muted);
+  line-height: 1.4;
+}
+.about-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 11px;
+  transition: all 0.15s;
+  margin-bottom: 6px;
+}
+.about-link:hover {
+  border-color: var(--accent);
+  background: rgba(57,211,83,0.05);
+}
+.about-script-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+}
+.about-script-box pre {
+  margin: 0 0 10px 0;
+  padding: 10px;
+  background: #111;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  user-select: all;
+}
+.about-script-box .btn {
+  width: 100%;
+}
+.about-badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #000;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.about-qrcode {
+  text-align: center;
+  padding: 8px 0;
+}
+.about-qrcode-img {
+  width: 180px;
+  height: 180px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.about-contact {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.about-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+}
+.about-contact-info {
+  flex: 1;
+}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <div class="logo">Vuln<span>Analyzer</span></div>
+    <div class="logo"><img src="/static/kabuqin2.png" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;">Vuln<span>Analyzer</span> <span style="font-size:12px;color:var(--muted);font-weight:400;">by cappuccinonofans</span></div>
     <div class="header-sep"></div>
     <button class="mode-btn" onclick="switchMode('manual')">Manual</button>
     <button class="mode-btn" onclick="switchMode('scan')">Scan</button>
     <button class="mode-btn" onclick="switchMode('poc')">PoC</button>
+    <button class="mode-btn" onclick="switchMode('about')">关于</button>
   </div>
   <div class="left">
     <div class="input-area active">
@@ -687,6 +814,11 @@ body {
         </div>
       </div>
     </div>
+    <div class="about-area">
+      <div class="about-scroll" id="about-scroll">
+        <!-- rendered by renderAbout() -->
+      </div>
+    </div>
   </div>
   <div class="right">
     <div class="results-header" id="results-header"></div>
@@ -714,16 +846,26 @@ function switchMode(mode) {
   const input = document.querySelector('.input-area');
   const scan = document.querySelector('.scan-area');
   const poc = document.querySelector('.poc-area');
+  const about = document.querySelector('.about-area');
+  const rightPanel = document.querySelector('.right');
   input.classList.remove('active');
   scan.classList.remove('active');
   poc.classList.remove('active');
+  about.classList.remove('active');
   if (mode === 'manual') {
     input.classList.add('active');
+    rightPanel.classList.remove('hidden');
   } else if (mode === 'poc') {
     poc.classList.add('active');
+    rightPanel.classList.add('hidden');
     renderPocLibrary();
+  } else if (mode === 'about') {
+    about.classList.add('active');
+    rightPanel.classList.add('hidden');
+    renderAbout();
   } else {
     scan.classList.add('active');
+    rightPanel.classList.remove('hidden');
   }
 }
 
@@ -1116,6 +1258,68 @@ function setupPocCopyButtons() {
   });
 }
 setupPocCopyButtons();
+
+// === About panel ===
+const CHANGELOG = [
+  ['v2.3', 'PoC参考库(24类156+payload) + XSS安全DOM渲染 + 关于面板'],
+  ['v2.2', 'SSE流式扫描 + UI重构 + 爬虫增强'],
+  ['v2.1', '检测引擎增强(SSTI/链式SSRF/行号定位)'],
+  ['v2.0', '初始版本发布'],
+];
+
+function renderAbout() {
+  const container = document.getElementById('about-scroll');
+  const wechatUrl = 'https://u.wechat.com/MIurMJLwMueC_0uzqmD1ArM?s=4';
+  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(wechatUrl);
+
+  let html = '';
+
+  // Changelog
+  html += `<div class="about-section">
+    <div class="about-section-title">\uD83D\uDCCB \u7248\u672C\u66F4\u65B0</div>`;
+  for (const [ver, desc] of CHANGELOG) {
+    html += `<div class="changelog-item">
+      <span class="changelog-version">${ver}</span>
+      <span class="changelog-desc">${desc}</span>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Related links
+  html += `<div class="about-section">
+    <div class="about-section-title">\uD83D\uDD17 \u76F8\u5173\u94FE\u63A5</div>
+    <a class="about-link" href="https://github.com/kabuqin/VulnAnalyzer" target="_blank">
+      <span>\uD83D\uDC3E</span>
+      <span>GitHub \u4ED3\u5E93</span>
+    </a>
+  </div>`;
+
+  // Contact author
+  html += `<div class="about-section">
+    <div class="about-section-title">\uD83D\uDCDE \u8054\u7CFB\u4F5C\u8005</div>
+    <div class="about-contact">
+      <img src="/static/kabuqin.png" alt="kabuqin" class="about-avatar">
+      <div class="about-contact-info">
+        <div style="font-size:12px;font-weight:600;">kabuqin</div>
+      </div>
+    </div>
+    <div class="about-qrcode" style="margin-top:12px;">
+      <img src="${qrUrl}" alt="\u5FAE\u4FE1\u4E8C\u7EF4\u7801" class="about-qrcode-img">
+      <div style="color:var(--muted);font-size:10px;margin-top:6px;">\u626B\u4E00\u626B\u52A0\u597D\u53CB</div>
+    </div>
+  </div>`;
+
+  // Acknowledgments
+  html += `<div class="about-section">
+    <div class="about-section-title">\uD83D\uDE4F \u81F4\u8C22</div>
+    <p style="color:var(--muted);font-size:11px;line-height:1.6;margin:0;">
+       \u611F\u8C22 OWASP\u3001CWE\u3001Flask \u793E\u533A\u7684\u652F\u6301\u3002
+    </p>
+  </div>`;
+
+  container.innerHTML = html;
+}
+
 </script>
 </body>
 </html>

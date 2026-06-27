@@ -1,0 +1,21 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: Q0DeR-MaG1C-BrAnCh-Fo2-NoN-GiT-Or-No-C0MmIt
+exported_at: "2026-06-15T21:11:46Z"
+modules:
+    "":
+        dir_name: Web漏洞静态分析与扫描平台
+        title: Web漏洞静态分析与扫描平台
+        scope:
+            - VulnAnalyzer/
+            - VulnAnalyzer\QUICKSTART.md
+            - VulnAnalyzer\README.md
+            - VulnAnalyzer\app.py
+            - VulnAnalyzer\crawler.py
+            - VulnAnalyzer\static\index.html
+            - VulnAnalyzer\vuln_analyzer.py
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

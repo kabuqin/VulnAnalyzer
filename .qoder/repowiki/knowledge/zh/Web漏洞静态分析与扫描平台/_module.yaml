@@ -1,0 +1,14 @@
+schema_version: 1
+module_path: ""
+title: Web漏洞静态分析与扫描平台
+scope:
+    - VulnAnalyzer/
+    - VulnAnalyzer\QUICKSTART.md
+    - VulnAnalyzer\README.md
+    - VulnAnalyzer\app.py
+    - VulnAnalyzer\crawler.py
+    - VulnAnalyzer\static\index.html
+    - VulnAnalyzer\vuln_analyzer.py
+source_files: []
+depends_on: []
+related_to: []

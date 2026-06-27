@@ -1,4 +1,4 @@
-# 🔍 VulnAnalyzer v2.2
+# 🔍 VulnAnalyzer 
 
 **All-in-One Automated Vulnerability Detection & Analysis Platform**
 

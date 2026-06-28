@@ -24,3 +24,4 @@ Thumbs.db
 # Test files (keep test_ prefix for ad-hoc scripts)
 *_test.py
 test_*.py
+README.md
